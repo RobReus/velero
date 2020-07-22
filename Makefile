@@ -21,7 +21,7 @@ BIN ?= velero
 PKG := github.com/vmware-tanzu/velero
 
 # Where to push the docker image.
-REGISTRY ?= velero
+REGISTRY ?= robreus
 
 # Build image handling. We push a build image for every changed version of 
 # /hack/build-image/Dockerfile. We tag the dockerfile with the short commit hash
