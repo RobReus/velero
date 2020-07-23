@@ -17,15 +17,18 @@
 set -o errexit
 set -o nounset
 set -o pipefail
+set -x
 
-if [[ -z "${PKG}" ]]; then
-    echo "PKG must be set"
-    exit 1
-fi
 if [[ -z "${BIN}" ]]; then
     echo "BIN must be set"
     exit 1
 fi
+
+if [[ "${BIN}" != "velero" ]]; then
+    echo "${BIN} does not need the restic binary"
+    exit 0
+fi
+
 if [[ -z "${GOOS}" ]]; then
     echo "GOOS must be set"
     exit 1
@@ -34,37 +37,19 @@ if [[ -z "${GOARCH}" ]]; then
     echo "GOARCH must be set"
     exit 1
 fi
-if [[ -z "${VERSION}" ]]; then
-    echo "VERSION must be set"
+if [[ -z "${RESTIC_VERSION}" ]]; then
+    echo "RESTIC_VERSION must be set"
     exit 1
 fi
 
-if [[ -z "${GIT_SHA}" ]]; then
-    echo "GIT_SHA must be set"
-    exit 1
+# TODO: when the new restic version is released, make ppc64le to be also downloaded from their github releases.
+#  This has been merged and will be applied to next release: https://github.com/restic/restic/pull/2342
+if [[ "${GOARCH}" = "ppc64le" ]]; then
+    wget --timeout=1 --tries=5 https://oplab9.parqtec.unicamp.br/pub/ppc64el/restic/restic-${RESTIC_VERSION} -O /output/usr/bin/restic
+else
+    wget https://github.com/restic/restic/releases/download/v${RESTIC_VERSION}/restic_${RESTIC_VERSION}_${GOOS}_${GOARCH}.bz2
+    bunzip2 restic_${RESTIC_VERSION}_${GOOS}_${GOARCH}.bz2
+    mv restic_${RESTIC_VERSION}_${GOOS}_${GOARCH} /output/usr/bin/restic
 fi
 
-if [[ -z "${GIT_TREE_STATE}" ]]; then
-    echo "GIT_TREE_STATE must be set"
-    exit 1
-fi
-
-export CGO_ENABLED=0
-
-LDFLAGS="-X ${PKG}/pkg/buildinfo.Version=${VERSION}"
-LDFLAGS="${LDFLAGS} -X ${PKG}/pkg/buildinfo.GitSHA=${GIT_SHA}"
-LDFLAGS="${LDFLAGS} -X ${PKG}/pkg/buildinfo.GitTreeState=${GIT_TREE_STATE}"
-
-if [[ -z "${OUTPUT_DIR:-}" ]]; then
-  OUTPUT_DIR=.
-fi
-OUTPUT=${OUTPUT_DIR}/${BIN}
-if [[ "${GOOS}" = "windows" ]]; then
-  OUTPUT="${OUTPUT}.exe"
-fi
-
-go build \
-    -o ${OUTPUT} \
-    -installsuffix "static" \
-    -ldflags "${LDFLAGS}" \
-    ${PKG}/cmd/${BIN}
+chmod +x /output/usr/bin/restic
